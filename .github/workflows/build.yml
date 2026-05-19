@@ -27,19 +27,19 @@ jobs:
 
     - name: Format code (Beautify)
       run: |
-        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                      -D CMAKE_CXX_FLAGS="-frtti -s DISABLE_EXCEPTION_CATCHING=0" . -B build
         cd build
-        
         make beautify
-        
         cd ..
         rm -rf build/
         
     - name: Build WebAssembly (Duel Game)
       run: |
-        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                      -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF \
+                      -D CMAKE_CXX_FLAGS="-frtti -s DISABLE_EXCEPTION_CATCHING=0" . -B build
         cd build
-        
         make Duel
 
     - name: Upload Build Artifacts
