@@ -31,7 +31,7 @@ struct MathChallengeComponent {
     std::string challenge_text;
     
     MathChallengeComponent(int answer, std::string text) 
-        : expected_answer(answer), challenge_text(text) {}
+        : expected_answer(answer), challenge_text(std::move(text)) {}
 };
 
 struct EnemyTagComponent {};
