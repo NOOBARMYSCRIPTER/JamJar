@@ -130,6 +130,7 @@ void JamJar::Game::startLoop() {
 #endif
 
 JamJar::Game* G_GameInstance = nullptr;
+JamJar::MessageBus* G_MessageBus = nullptr;
 
 struct ActiveEnemy {
     unsigned int id;
@@ -148,12 +149,9 @@ public:
 
     void OnMessage(JamJar::Message* message) override {
         JamJar::System::OnMessage(message);
-        
         if (message->type == JamJar::System::MESSAGE_UPDATE) {
             auto* updateMsg = static_cast<JamJar::MessagePayload<float>*>(message);
-            float deltaTime = updateMsg->payload;
-            
-            UpdateEnemyAndUI(deltaTime);
+            UpdateEnemyAndUI(updateMsg->payload);
         }
     }
 
@@ -163,7 +161,6 @@ private:
             if (!enemy.body) continue;
 
             JamJar::Vector2D currentPos = enemy.body->GetPosition();
-            
             JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
             float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
             
@@ -178,7 +175,6 @@ private:
 
             float pctX = (currentPos.x + 15.0f) / 30.0f;
             float pctY = 1.0f - ((currentPos.y + 8.5f) / 17.0f);
-
             const char* text = enemy.challenge_text.c_str();
 
 #ifdef __EMSCRIPTEN__
@@ -197,16 +193,103 @@ private:
 class MathDuelGame : public JamJar::Game {
 public:
     MathDuelGame(JamJar::MessageBus* messageBus) : JamJar::Game(messageBus) {}
+    void OnStart() override {}
+};
 
-    void OnStart() override {
-        std::cout << "C++: Наполнение сцены объектами..." << std::endl;
+struct ChallengeData {
+    int expected_answer;
+    std::string challenge_text;
+};
 
+ChallengeData GenerateMathChallenge() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, 1);
+    std::uniform_int_distribution<> answerDist(1, 10);
+
+    int answer = answerDist(gen);
+    std::string text = "";
+
+    if (actionDist(gen) == 0) {
+        std::uniform_int_distribution<> aDist(0, answer);
+        int a = aDist(gen);
+        int b = answer - a;
+        text = std::to_string(a) + " + " + std::to_string(b);
+    } else {
+        std::uniform_int_distribution<> bDist(0, 10);
+        int b = bDist(gen);
+        int a = answer + b;
+        text = std::to_string(a) + " - " + std::to_string(b);
+    }
+    return ChallengeData{answer, text};
+}
+
+void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
+    auto enemyEntity = new JamJar::Entity(mb);
+    enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
+    
+    enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
+        JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
+        JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
+    ));
+
+    JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
+    enemyProps.density = 1.0f;
+
+    auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
+        JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
+        enemyProps
+    );
+    
+    enemyBody->SetPosition(JamJar::Vector2D(x, y));
+    enemyEntity->Add(enemyBody);
+
+    auto challenge = GenerateMathChallenge();
+    
+    ActiveEnemy enemyData;
+    enemyData.id = enemyEntity->id;
+    enemyData.body = enemyBody;
+    enemyData.challenge_text = challenge.challenge_text;
+    enemyData.expected_answer = challenge.expected_answer;
+    
+    G_ActiveEnemies.push_back(enemyData);
+
+    std::cout << "Монстр вышел из темноты ID: " << enemyEntity->id << " на позицию (" << x << ", " << y << "). Пример: " 
+              << challenge.challenge_text << std::endl;
+}
+
+int main(int argc, char *argv[]) {
+    auto window = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
+    auto context = JamJar::GetCanvasContext();
+
+    std::cout << "C++: Инициализация базовых подсистем JamJar..." << std::endl;
+
+    G_MessageBus = new JamJar::MessageBus();
+    new JamJar::EntityManager(G_MessageBus);
+
+    G_GameInstance = new MathDuelGame(G_MessageBus);
+
+    new JamJar::Standard::_2D::WebGL2System(G_MessageBus, window, context);
+    new JamJar::Standard::_2D::PrimitiveSystem(G_MessageBus);
+    new JamJar::Standard::_2D::Box2DPhysicsSystem(G_MessageBus, JamJar::Vector2D(0.0f, 0.0f));
+    new JamJar::Standard::WindowSystem(G_MessageBus, window, "canvas-wrapper");
+    new EnemyAISystem(G_MessageBus);
+
+    return 0;
+}
+
+void StartGameSession() {
+    if (G_GameInstance != nullptr && G_MessageBus != nullptr) {
+        std::cout << "C++: Старт игрового сеанса через JS триггер." << std::endl;
+        
         try {
-            auto cameraEntity = new JamJar::Entity(this->messageBus);
+            std::cout << "C++: Наполнение сцены объектами..." << std::endl;
+
+            auto cameraEntity = new JamJar::Entity(G_MessageBus);
             cameraEntity->Add(new JamJar::Standard::_2D::Transform());
             cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f)));
 
-            auto player = new JamJar::Entity(this->messageBus);
+            auto player = new JamJar::Entity(G_MessageBus);
             player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
             player->Add(new JamJar::Standard::_2D::Primitive(
                 JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  -0.5f, 0.5f}),
@@ -221,112 +304,15 @@ public:
             playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
             player->Add(playerBody);
 
-            SpawnEnemyFromDarkness(-13.0f, 1.5f);
-            SpawnEnemyFromDarkness(13.0f, -1.5f); 
-            
-        } catch (const std::exception& e) {
-            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА в OnStart(): " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ внутри OnStart()" << std::endl;
-        }
-    }
+            SpawnEnemyFromDarkness(G_MessageBus, -13.0f, 1.5f);
+            SpawnEnemyFromDarkness(G_MessageBus, 13.0f, -1.5f); 
 
-private:
-    void SpawnEnemyFromDarkness(float x, float y) {
-        auto enemyEntity = new JamJar::Entity(this->messageBus);
-        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
-        
-        enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
-            JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
-        ));
-
-        JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
-        enemyProps.density = 1.0f;
-
-        auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-            JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
-            enemyProps
-        );
-        
-        enemyBody->SetPosition(JamJar::Vector2D(x, y));
-        enemyEntity->Add(enemyBody);
-
-        auto challenge = GenerateMathChallenge();
-        
-        ActiveEnemy enemyData;
-        enemyData.id = enemyEntity->id;
-        enemyData.body = enemyBody;
-        enemyData.challenge_text = challenge.challenge_text;
-        enemyData.expected_answer = challenge.expected_answer;
-        
-        G_ActiveEnemies.push_back(enemyData);
-
-        std::cout << "Монстр вышел из темноты ID: " << enemyEntity->id << " на позицию (" << x << ", " << y << "). Пример: " 
-                  << challenge.challenge_text << std::endl;
-    }
-
-    struct ChallengeData {
-        int expected_answer;
-        std::string challenge_text;
-    };
-
-    ChallengeData GenerateMathChallenge() {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> actionDist(0, 1);
-        std::uniform_int_distribution<> answerDist(1, 10);
-
-        int answer = answerDist(gen);
-        std::string text = "";
-
-        if (actionDist(gen) == 0) {
-            std::uniform_int_distribution<> aDist(0, answer);
-            int a = aDist(gen);
-            int b = answer - a;
-            text = std::to_string(a) + " + " + std::to_string(b);
-        } else {
-            std::uniform_int_distribution<> bDist(0, 10);
-            int b = bDist(gen);
-            int a = answer + b;
-            text = std::to_string(a) + " - " + std::to_string(b);
-        }
-
-        return ChallengeData{answer, text};
-    }
-};
-
-int main(int argc, char *argv[]) {
-    auto window = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
-    auto context = JamJar::GetCanvasContext();
-
-    std::cout << "C++: Инициализация базовых подсистем JamJar..." << std::endl;
-
-    auto* messageBus = new JamJar::MessageBus();
-    new JamJar::EntityManager(messageBus);
-
-    G_GameInstance = new MathDuelGame(messageBus);
-
-    new JamJar::Standard::_2D::WebGL2System(messageBus, window, context);
-    new JamJar::Standard::_2D::PrimitiveSystem(messageBus);
-    new JamJar::Standard::_2D::Box2DPhysicsSystem(messageBus, JamJar::Vector2D(0.0f, 0.0f));
-    
-    new JamJar::Standard::WindowSystem(messageBus, window, "canvas-wrapper");
-    
-    new EnemyAISystem(messageBus);
-
-    return 0;
-}
-
-void StartGameSession() {
-    if (G_GameInstance != nullptr) {
-        std::cout << "C++: Старт игрового сеанса через JS триггер." << std::endl;
-        try {
             G_GameInstance->Start();
+
         } catch (const std::exception& e) {
-            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА при старте цикла: " << e.what() << std::endl;
+            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА при наполнении сцены: " << e.what() << std::endl;
         } catch (...) {
-            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ при старте цикла" << std::endl;
+            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ при наполнении сцены" << std::endl;
         }
     }
 }
