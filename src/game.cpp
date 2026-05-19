@@ -1,16 +1,23 @@
+#include "game.hpp"
+
 #include <chrono>
-#include <emscripten.h>
-#include <emscripten/bind.h>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <string>
 #include <vector>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+#include <emscripten/html5.h>
+#include <stdio.h>
+#endif
+
 #include "entity/entity.hpp"
-#include "game.hpp"
 #include "geometry/polygon.hpp"
 #include "geometry/vector_2d.hpp"
+#include "hash.hpp"
 #include "message/message.hpp"
 #include "message/message_bus.hpp"
 #include "message/message_payload.hpp"
@@ -22,6 +29,98 @@
 #include "standard/2d/camera/camera.hpp"
 #include "standard/2d/transform/transform.hpp"
 #include "standard/window/window_system.hpp"
+
+const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
+constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
+
+JamJar::Game::Game(JamJar::MessageBus *messageBus)
+    : messageBus(messageBus), isRunning(false), m_accumulator(std::chrono::microseconds(0)),
+      m_currentTime(std::chrono::high_resolution_clock::now()) {
+    messageBus->Subscribe(this, JamJar::Game::MESSAGE_STOP_GAME);
+}
+
+void JamJar::Game::Start() {
+    this->OnStart();
+    this->isRunning = true;
+    this->startLoop();
+}
+
+void JamJar::Game::stop() {
+    this->OnStop();
+    this->isRunning = false;
+}
+
+void JamJar::Game::OnMessage(JamJar::Message *message) {
+    switch (message->type) {
+    case JamJar::Game::MESSAGE_STOP_GAME: {
+        this->stop();
+        return;
+    }
+    }
+}
+
+bool JamJar::Game::Loop(std::chrono::high_resolution_clock::time_point timestamp) {
+    if (!this->isRunning) {
+        return false;
+    }
+
+    auto timeDifference = timestamp - this->m_currentTime;
+    auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(timeDifference);
+    if (frameTime > FRAMETIME_CAP) {
+        frameTime = FRAMETIME_CAP;
+    }
+
+    auto timeStep = std::chrono::microseconds(TIME_STEP);
+    this->m_currentTime = timestamp;
+    this->m_accumulator += frameTime;
+
+    while (this->m_accumulator >= timeStep) {
+        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
+            JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
+        this->messageBus->Dispatch();
+        this->m_accumulator -= timeStep;
+    }
+
+    auto alpha = float(this->m_accumulator.count()) / float(TIME_STEP);
+
+    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
+    this->messageBus->Dispatch();
+
+    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
+
+    this->messageBus->Publish(
+        std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
+    this->messageBus->Dispatch();
+    return true;
+}
+
+void JamJar::Game::OnStart() {}
+void JamJar::Game::OnStop() {}
+
+#ifdef __EMSCRIPTEN__
+EM_BOOL loopWrapper(double timestamp, void *userData) {
+    auto game = static_cast<JamJar::Game *>(userData);
+    auto now = std::chrono::high_resolution_clock::now();
+    if (game->Loop(now)) {
+        emscripten_request_animation_frame(loopWrapper, game);
+    }
+    return EM_TRUE;
+}
+
+void JamJar::Game::startLoop() {
+    this->m_currentTime = std::chrono::high_resolution_clock::now();
+    loopWrapper(0, this);
+}
+#else
+void JamJar::Game::startLoop() {
+    this->m_currentTime = std::chrono::high_resolution_clock::now();
+    bool running = true;
+    while (running) {
+        auto now = std::chrono::high_resolution_clock::now();
+        running = this->Loop(now);
+    }
+}
+#endif
 
 JamJar::Game* G_GameInstance = nullptr;
 
@@ -74,11 +173,13 @@ private:
 
             const char* text = enemy.challenge_text.c_str();
 
+#ifdef __EMSCRIPTEN__
             MAIN_THREAD_EM_ASM({
                 if (Module.updateMonsterUI) {
                     Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
                 }
             }, enemy.id, text, pctX, pctY);
+#endif
         }
     }
 };
@@ -185,6 +286,8 @@ void StartGameSession() {
     }
 }
 
+#ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(game_core_module) {
     emscripten::function("StartGameSession", &StartGameSession);
 }
+#endif
