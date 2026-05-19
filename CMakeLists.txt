@@ -156,9 +156,12 @@ endif()
 
 ### ===== WEB BUILD (MATH DUEL) ===== ###
 if (EMSCRIPTEN)
-    add_executable(Duel "")
+    set(DUMMY_WEB_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/duel_dummy.cpp")
+    if(NOT EXISTS "${DUMMY_WEB_SOURCE}")
+        file(WRITE "${DUMMY_WEB_SOURCE}" "// Generated placeholder for Emscripten\n")
+    endif()
 
-    set_target_properties(Duel PROPERTIES LINKER_LANGUAGE CXX)
+    add_executable(Duel "${DUMMY_WEB_SOURCE}")
 
     target_link_libraries(Duel PRIVATE 
         -Wl,--whole-archive JamJar -Wl,--no-whole-archive
