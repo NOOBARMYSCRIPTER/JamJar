@@ -11,13 +11,13 @@ jobs:
     container: jamjarlabs/jamjar-build-image:v0.1.0
     steps:
     - name: Check out code into the CI directory
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
+
     - name: Lint, beautify, and test
       env:
         CC: gcc # Using gcc/g++ for now due to this issue: https://bugs.launchpad.net/ubuntu/+source/libsdl2-ttf/+bug/1872023
         CXX: g++
       run: |
-
         # These stages use clang-tidy, clang-format, and Catch2 which require compiling using clang rather than
         # emscripten
 
@@ -39,15 +39,22 @@ jobs:
         # Clean up build
         cd ..
         rm -rf build/
-    - name: Build
+
+    - name: Build WebAssembly (Duel Game)
       env:
         CC: emcc
         CXX: em++
       run: |
-
-        # Set up build
-        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
         cd build
 
-        # Build the project
-        make
+        make Duel
+
+    - name: Upload Build Artifacts
+      uses: actions/artifacts/upload@v4
+      with:
+        name: math-duel-web-release
+        path: |
+          index.html
+          Duel.js
+          Duel.wasm
