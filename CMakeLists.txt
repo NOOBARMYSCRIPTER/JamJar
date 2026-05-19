@@ -49,7 +49,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if (EMSCRIPTEN)
-    set(CMAKE_CXX_FLAGS  "-s USE_SDL=2")
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -s USE_SDL=2 -fexceptions")
 else()
     # This is a bit of a hacky workaround, the CI runner is Ubuntu based, and the SDL2 library in Ubuntu doesn't play
     # nice with clang, so the SDL2 path needs to be manually included, see here:
@@ -156,17 +156,18 @@ endif()
 
 ### ===== WEB BUILD (MATH DUEL) ===== ###
 if (EMSCRIPTEN)
-    add_executable(Duel 
-        src/game.cpp
-    )
+    add_executable(Duel)
 
-    target_link_libraries(Duel PRIVATE JamJar)
+    target_link_libraries(Duel PRIVATE 
+        -Wl,--whole-archive JamJar -Wl,--no-whole-archive
+    )
     
     target_include_directories(Duel PRIVATE include)
 
     target_link_options(Duel PRIVATE
         "-s ALLOW_MEMORY_GROWTH=1"
         "-s USE_SDL=2"
+        "-fexceptions"
         "--bind"
         "-O3"
     )
