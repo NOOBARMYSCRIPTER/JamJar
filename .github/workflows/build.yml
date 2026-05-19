@@ -37,7 +37,10 @@ jobs:
         
     - name: Build WebAssembly (Duel Game)
       run: |
-        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
+              -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF \
+              -DCMAKE_CXX_FLAGS="-I${{ github.workspace }}/build/_deps/box2d-src/include" \
+              . -B build
         cd build
         
         make Duel
