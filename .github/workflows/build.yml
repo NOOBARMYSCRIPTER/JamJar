@@ -9,15 +9,23 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    container: jamjarlabs/jamjar-build-image:v0.1.0
     steps:
     - name: Check out code into the CI directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Emscripten toolchain
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: 'latest'
+
+    - name: Install Native Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev cmake clang-tidy clang-format
 
     - name: Lint, beautify, and test
-      env:
-        CC: emcc
-        CXX: em++
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
@@ -29,11 +37,8 @@ jobs:
         cd ..
         rm -rf build/
 
-        export CC=gcc
-        export CXX=g++
         cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
-
         make JamJarTests
         ctest
 
@@ -41,13 +46,9 @@ jobs:
         rm -rf build/
 
     - name: Build WebAssembly (Duel Game)
-      env:
-        CC: emcc
-        CXX: em++
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
         cd build
-        
         make Duel
 
     - name: Upload Build Artifacts
