@@ -234,17 +234,17 @@ void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
     enemyProps.friction = 0.3f;
     enemyProps.restitution = 0.0f;
 
-    enemyEntity->Add(new JamJar::Standard::_2D::Box2DBody(
+    auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
         JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
         enemyProps
-    ));
+    );
+
+    enemyEntity->Add(enemyBody);
 
     enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
         JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
         JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
     ));
-
-    auto* enemyBody = enemyEntity->Get<JamJar::Standard::_2D::Box2DBody>();
 
     auto challenge = GenerateMathChallenge();
     
