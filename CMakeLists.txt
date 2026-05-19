@@ -156,7 +156,9 @@ endif()
 
 ### ===== WEB BUILD (MATH DUEL) ===== ###
 if (EMSCRIPTEN)
-    add_executable(Duel)
+    add_executable(Duel "")
+
+    set_target_properties(Duel PROPERTIES LINKER_LANGUAGE CXX)
 
     target_link_libraries(Duel PRIVATE 
         -Wl,--whole-archive JamJar -Wl,--no-whole-archive
