@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "component/component.hpp"
 #include "entity/entity.hpp"
 #include "game.hpp"
 #include "geometry/polygon.hpp"
@@ -26,17 +25,14 @@
 
 JamJar::Game* G_GameInstance = nullptr;
 
-std::vector<JamJar::Entity*> G_EnemyEntities;
-
-struct MathChallengeComponent : public JamJar::Component {
-    int expected_answer;
+struct ActiveEnemy {
+    unsigned int id;
+    JamJar::Standard::_2D::Box2DBody* body;
     std::string challenge_text;
-    
-    MathChallengeComponent(int answer, const std::string& text) 
-        : expected_answer(answer), challenge_text(text) {}
+    int expected_answer;
 };
 
-struct EnemyTagComponent : public JamJar::Component {};
+std::vector<ActiveEnemy> G_ActiveEnemies;
 
 class EnemyAISystem : public JamJar::System {
 public:
@@ -57,39 +53,32 @@ public:
 
 private:
     void UpdateEnemyAndUI(float deltaTime) {
-        for (auto* entity : G_EnemyEntities) {
-            if (!entity) continue;
+        for (auto& enemy : G_ActiveEnemies) {
+            if (!enemy.body) continue;
 
-            auto* body = entity->Get<JamJar::Standard::_2D::Box2DBody>();
-            auto* enemyTag = entity->Get<EnemyTagComponent>();
-            auto* challenge = entity->Get<MathChallengeComponent>();
+            JamJar::Vector2D currentPos = enemy.body->GetPosition();
+            JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
+            float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
             
-            if (body && enemyTag && challenge) {
-                JamJar::Vector2D currentPos = body->GetPosition();
-                JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
-                float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-                
-                if (length > 0.1f) {
-                    direction.x /= length;
-                    direction.y /= length;
-                    float speed = 3.0f;
-                    body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
-                } else {
-                    body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
-                }
-
-                float pctX = (currentPos.x + 15.0f) / 30.0f;
-                float pctY = 1.0f - ((currentPos.y + 1.2f + 8.5f) / 17.0f);
-
-                unsigned int entityId = entity->id; 
-                const char* text = challenge->challenge_text.c_str();
-
-                MAIN_THREAD_EM_ASM({
-                    if (Module.updateMonsterUI) {
-                        Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
-                    }
-                }, entityId, text, pctX, pctY);
+            if (length > 0.1f) {
+                direction.x /= length;
+                direction.y /= length;
+                float speed = 3.0f;
+                enemy.body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
+            } else {
+                enemy.body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
             }
+
+            float pctX = (currentPos.x + 15.0f) / 30.0f;
+            float pctY = 1.0f - ((currentPos.y + 1.2f + 8.5f) / 17.0f);
+
+            const char* text = enemy.challenge_text.c_str();
+
+            MAIN_THREAD_EM_ASM({
+                if (Module.updateMonsterUI) {
+                    Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
+                }
+            }, enemy.id, text, pctX, pctY);
         }
     }
 };
@@ -112,8 +101,6 @@ public:
         player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
         
         JamJar::Standard::_2D::Box2DBodyProperties playerProps;
-        playerProps.type = b2_staticBody;
-
         player->Add(new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5}),
             playerProps
@@ -125,24 +112,25 @@ public:
 
 private:
     void SpawnEnemyFromDarkness(float x, float y) {
-        auto enemy = new JamJar::Entity(this->messageBus);
-        enemy->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
+        auto enemyEntity = new JamJar::Entity(this->messageBus);
+        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
         
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
-        enemyProps.type = b2_dynamicBody;
-        enemyProps.density = 1.0f;
-
-        enemy->Add(new JamJar::Standard::_2D::Box2DBody(
+        auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5}),
             enemyProps
-        ));
-
-        enemy->Add(new EnemyTagComponent());
+        );
+        enemyEntity->Add(enemyBody);
 
         auto challenge = GenerateMathChallenge();
-        enemy->Add(new MathChallengeComponent(challenge.expected_answer, challenge.challenge_text));
         
-        G_EnemyEntities.push_back(enemy);
+        ActiveEnemy enemyData;
+        enemyData.id = enemyEntity->id;
+        enemyData.body = enemyBody;
+        enemyData.challenge_text = challenge.challenge_text;
+        enemyData.expected_answer = challenge.expected_answer;
+        
+        G_ActiveEnemies.push_back(enemyData);
 
         std::cout << "Монстр вышел из темноты (" << x << ", " << y << "). Пример: " 
                   << challenge.challenge_text << " | Ответ: " << challenge.expected_answer << std::endl;
