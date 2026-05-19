@@ -15,7 +15,6 @@ Checks: >
   -modernize-use-trailing-return-type
 WarningsAsErrors: '*'
 HeaderFilterRegex: ''
-AnalyzeTemporaryDtors: false
 FormatStyle:     none
 CheckOptions:
   - key:             modernize-loop-convert.MaxCopySize
