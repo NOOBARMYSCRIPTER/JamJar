@@ -108,15 +108,27 @@ void JamJar::Game::OnStop() {}
 EM_BOOL loopWrapper(double timestamp, void *userData) {
     auto game = static_cast<JamJar::Game *>(userData);
     auto now = std::chrono::high_resolution_clock::now();
-    if (game->Loop(now)) {
-        emscripten_request_animation_frame(loopWrapper, game);
+    
+    try {
+        if (game->Loop(now)) {
+            emscripten_request_animation_frame(loopWrapper, game);
+        }
+    } catch (const std::exception& e) {
+        printf("КРИТИЧЕСКАЯ ОШИБКА ВНУТРИ ИГРОВОГО ЦИКЛА: %s\n", e.what());
+        return EM_FALSE;
+    } catch (...) {
+        printf("НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ ВНУТРИ ИГРОВОГО ЦИКЛА\n");
+        return EM_FALSE;
     }
+    
     return EM_TRUE;
 }
 
 void JamJar::Game::startLoop() {
     this->m_currentTime = std::chrono::high_resolution_clock::now();
-    loopWrapper(0, this);
+    emscripten_request_animation_frame(loopWrapper, this);
+    
+    std::cout << "C++: Игровой цикл успешно асинхронно зарегистрирован в браузере." << std::endl;
 }
 #else
 void JamJar::Game::startLoop() {
