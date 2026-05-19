@@ -148,10 +148,8 @@ public:
     }
 
     void OnMessage(JamJar::Message* message) override {
-        JamJar::System::OnMessage(message);
-        if (message->type == JamJar::System::MESSAGE_UPDATE) {
-            auto* updateMsg = static_cast<JamJar::MessagePayload<float>*>(message);
-            UpdateEnemyAndUI(updateMsg->payload);
+        if (message != nullptr && message->type == JamJar::System::MESSAGE_UPDATE) {
+            UpdateEnemyAndUI(0.01666f);
         }
     }
 
@@ -160,32 +158,34 @@ private:
         for (auto& enemy : G_ActiveEnemies) {
             if (!enemy.body) continue;
 
-            JamJar::Vector2D currentPos = enemy.body->GetPosition();
-            JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
-            float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-            
-            if (length > 0.5f) {
-                direction.x /= length;
-                direction.y /= length;
-                float speed = 1.8f; 
-                enemy.body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
-            } else {
-                enemy.body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
-            }
+            try {
+                JamJar::Vector2D currentPos = enemy.body->GetPosition();
+                JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
+                float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+                
+                if (length > 0.5f) {
+                    direction.x /= length;
+                    direction.y /= length;
+                    float speed = 1.8f; 
+                    enemy.body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
+                } else {
+                    enemy.body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
+                }
 
-            float pctX = (currentPos.x + 15.0f) / 30.0f;
-            float pctY = 1.0f - ((currentPos.y + 8.5f) / 17.0f);
-            const char* text = enemy.challenge_text.c_str();
+                float pctX = (currentPos.x + 15.0f) / 30.0f;
+                float pctY = 1.0f - ((currentPos.y + 8.5f) / 17.0f);
+                const char* text = enemy.challenge_text.c_str();
 
 #ifdef __EMSCRIPTEN__
-            MAIN_THREAD_EM_ASM({
-                if (window.Module) {
-                    if (window.Module.updateMonsterUI) {
+                MAIN_THREAD_EM_ASM({
+                    if (window.Module && window.Module.updateMonsterUI) {
                         window.Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
                     }
-                }
-            }, enemy.id, text, pctX, pctY);
+                }, enemy.id, text, pctX, pctY);
 #endif
+            } catch (...) {
+                continue;
+            }
         }
     }
 };
