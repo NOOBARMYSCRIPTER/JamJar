@@ -118,6 +118,8 @@ target_link_libraries(JamJar PRIVATE box2d)
 target_include_directories(JamJar
     PUBLIC
         include
+        ${box2d_SOURCE_DIR}/include
+        ${box2d_SOURCE_DIR}
     PRIVATE
         src
 )
