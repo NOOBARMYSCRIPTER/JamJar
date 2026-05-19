@@ -42,7 +42,7 @@ constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(25
 
 JamJar::Game::Game(JamJar::MessageBus *messageBus)
     : messageBus(messageBus), isRunning(false), m_accumulator(std::chrono::microseconds(0)),
-      m_currentTime(std::chrono::high_resolution_clock::now()) {
+      m_currentTime = std::chrono::high_resolution_clock::now() {
     messageBus->Subscribe(this, JamJar::Game::MESSAGE_STOP_GAME);
 }
 
@@ -82,43 +82,22 @@ bool JamJar::Game::Loop(std::chrono::high_resolution_clock::time_point timestamp
     this->m_accumulator += frameTime;
 
     while (this->m_accumulator >= timeStep) {
-        try {
-            this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
-                JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
-            this->messageBus->Dispatch();
-        } catch (const std::exception& e) {
-            printf("ДИАГНОСТИКА: Упало на этапе MESSAGE_UPDATE! Ошибка: %s\n", e.what());
-            throw;
-        }
+        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
+            JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
+        this->messageBus->Dispatch();
         this->m_accumulator -= timeStep;
     }
 
     auto alpha = float(this->m_accumulator.count()) / float(TIME_STEP);
 
-    try {
-        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
-        this->messageBus->Dispatch();
-    } catch (const std::exception& e) {
-        printf("ДИАГНОСТИКА: Упало на этапе PRE_RENDER! Ошибка: %s\n", e.what());
-        throw;
-    }
+    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
+    this->messageBus->Dispatch();
 
-    try {
-        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
-        this->messageBus->Dispatch(); 
-    } catch (const std::exception& e) {
-        printf("ДИАГНОСТИКА: Упало на этапе MESSAGE_RENDER! Ошибка: %s\n", e.what());
-        throw;
-    }
+    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
 
-    try {
-        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
-        this->messageBus->Dispatch();
-    } catch (const std::exception& e) {
-        printf("ДИАГНОСТИКА: Упало на этапе POST_RENDER! Ошибка: %s\n", e.what());
-        throw;
-    }
-
+    this->messageBus->Publish(
+        std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
+    this->messageBus->Dispatch();
     return true;
 }
 
@@ -148,7 +127,6 @@ EM_BOOL loopWrapper(double timestamp, void *userData) {
 void JamJar::Game::startLoop() {
     this->m_currentTime = std::chrono::high_resolution_clock::now();
     emscripten_request_animation_frame(loopWrapper, this);
-    
     std::cout << "C++: Игровой цикл успешно асинхронно зарегистрирован в браузере." << std::endl;
 }
 #else
@@ -184,11 +162,7 @@ public:
         if (message != nullptr && message->type == JamJar::System::MESSAGE_UPDATE) {
             try {
                 UpdateEnemyAndUI(0.01666f);
-            } catch (const std::exception& e) {
-
-            } catch (...) {
-
-            }
+            } catch (...) {}
         }
     }
 
@@ -223,8 +197,6 @@ private:
                     }
                 }, enemy.id, text, pctX, pctY);
 #endif
-            } catch (const std::exception& e) {
-                continue; 
             } catch (...) {
                 continue;
             }
@@ -343,7 +315,14 @@ int main(int argc, char *argv[]) {
     new JamJar::Standard::_2D::WebGL2System(G_MessageBus, window, context);
     new JamJar::Standard::_2D::PrimitiveSystem(G_MessageBus);
     new JamJar::Standard::_2D::Box2DPhysicsSystem(G_MessageBus, JamJar::Vector2D(0.0f, 0.0f));
-    new JamJar::Standard::WindowSystem(G_MessageBus, window, "canvas-wrapper");
+    
+    new JamJar::Standard::WindowSystem(
+        G_MessageBus, 
+        window, 
+        "canvas-wrapper", 
+        JamJar::Standard::WindowSystemProperties({ .aspectRatio = 16.0 / 9.0 })
+    );
+    
     new EnemyAISystem(G_MessageBus);
 
     return 0;
@@ -352,10 +331,8 @@ int main(int argc, char *argv[]) {
 void StartGameSession() {
     if (G_GameInstance != nullptr && G_MessageBus != nullptr) {
         std::cout << "C++: Старт игрового сеанса через JS триггер." << std::endl;
-        
         try {
             G_GameInstance->Start();
-
         } catch (const std::exception& e) {
             printf("КРИТИЧЕСКАЯ ОШИБКА в C++: %s\n", e.what());
         } catch (...) {
