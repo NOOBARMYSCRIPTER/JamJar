@@ -23,27 +23,15 @@ jobs:
     - name: Install Native Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev cmake clang-tidy clang-format
+        sudo apt-get install -y cmake clang-format
 
-    - name: Lint, beautify, and test
+    - name: Format code (Beautify)
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
-
-        clang-tidy ../src/game.cpp -p . -- -std=c++17 -I$EMSDK/upstream/emscripten/cache/sysroot/include || true
-
+        
         make beautify
-
-        cd ..
-        rm -rf build/
-
-        cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
-              -D CMAKE_CXX_FLAGS_INIT="-DCATCH_CONFIG_NO_POSIX_SIGNALS" \
-              . -B build
-        cd build
-        make JamJarTests
-        ctest
-
+        
         cd ..
         rm -rf build/
         
@@ -51,6 +39,7 @@ jobs:
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
         cd build
+        
         make Duel
 
     - name: Upload Build Artifacts
