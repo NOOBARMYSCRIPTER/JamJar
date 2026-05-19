@@ -226,10 +226,11 @@ ChallengeData GenerateMathChallenge() {
 
 void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
     auto enemyEntity = new JamJar::Entity(mb);
+    
     enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
     
     enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
-        JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
+        JamJar::Polygon({0.0f, 0.5f,  -0.5f, -0.5f,  0.5f, -0.5f,  0.0f, 0.5f}),
         JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
     ));
 
@@ -237,11 +238,12 @@ void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
     enemyProps.density = 1.0f;
 
     auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-        JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
+        JamJar::Polygon({0.0f, 0.5f,  -0.5f, -0.5f,  0.5f, -0.5f}),
         enemyProps
     );
     
     enemyBody->SetPosition(JamJar::Vector2D(x, y));
+    
     enemyEntity->Add(enemyBody);
 
     auto challenge = GenerateMathChallenge();
@@ -310,9 +312,9 @@ void StartGameSession() {
             G_GameInstance->Start();
 
         } catch (const std::exception& e) {
-            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА при наполнении сцены: " << e.what() << std::endl;
+            printf("КРИТИЧЕСКАЯ ОШИБКА в C++: %s\n", e.what());
         } catch (...) {
-            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ при наполнении сцены" << std::endl;
+            printf("НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ в C++\n");
         }
     }
 }
