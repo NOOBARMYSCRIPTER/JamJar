@@ -45,8 +45,8 @@ jobs:
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: math-duel-web-release
+        name: math-duel-web-build
         path: |
-          build/index.html
-          build/Duel.js
-          build/Duel.wasm
+          Duel.js
+          Duel.wasm
+          index.html
