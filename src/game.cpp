@@ -226,23 +226,22 @@ ChallengeData GenerateMathChallenge() {
 
 void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
     auto enemyEntity = new JamJar::Entity(mb);
-    
+
     enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
-    
+
     JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
     enemyProps.density = 1.0f;
     enemyProps.friction = 0.3f;
     enemyProps.restitution = 0.0f;
 
     auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-        JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
+        JamJar::Polygon({-0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, -0.5}),
         enemyProps
     );
-
     enemyEntity->Add(enemyBody);
 
     enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
-        JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
+        JamJar::Polygon({0, 0.5, 0.5, -0.5, -0.5, -0.5, 0, 0.5}),
         JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
     ));
 
@@ -292,7 +291,6 @@ void StartGameSession() {
             cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f)));
 
             auto player = new JamJar::Entity(G_MessageBus);
-
             player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0.0f, 0.0f), JamJar::Vector2D(2, 2)));
 
             JamJar::Standard::_2D::Box2DBodyProperties playerProps;
@@ -301,18 +299,18 @@ void StartGameSession() {
             playerProps.restitution = 0.0f;
 
             player->Add(new JamJar::Standard::_2D::Box2DBody(
-                JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
+                JamJar::Polygon({-0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, -0.5}),
                 playerProps
             ));
 
             player->Add(new JamJar::Standard::_2D::Primitive(
-                JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  -0.5f, 0.5f}),
+                JamJar::Polygon({-0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5}),
                 JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
             ));
 
             SpawnEnemyFromDarkness(G_MessageBus, -13.0f, 1.5f);
             SpawnEnemyFromDarkness(G_MessageBus, 13.0f, -1.5f); 
-            
+
             G_GameInstance->Start();
 
         } catch (const std::exception& e) {
