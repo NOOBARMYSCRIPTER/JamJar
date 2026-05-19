@@ -6,6 +6,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <exception>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -182,7 +183,7 @@ private:
 
 #ifdef __EMSCRIPTEN__
             MAIN_THREAD_EM_ASM({
-                if (Module.updateMonsterUI) {
+                if (typeof Module !== 'undefined' && typeof Module.updateMonsterUI === 'function') {
                     Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
                 }
             }, enemy.id, text, pctX, pctY);
@@ -198,27 +199,34 @@ public:
     void OnStart() override {
         std::cout << "C++: Наполнение сцены объектами..." << std::endl;
 
-        auto cameraEntity = new JamJar::Entity(this->messageBus);
-        cameraEntity->Add(new JamJar::Standard::_2D::Transform());
-        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f)));
+        try {
+            auto cameraEntity = new JamJar::Entity(this->messageBus);
+            cameraEntity->Add(new JamJar::Standard::_2D::Transform());
+            cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f)));
 
-        auto player = new JamJar::Entity(this->messageBus);
-        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
-        player->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  -0.5f, 0.5f}),
-            JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
-        ));
+            auto player = new JamJar::Entity(this->messageBus);
+            player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
+            player->Add(new JamJar::Standard::_2D::Primitive(
+                JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  -0.5f, 0.5f}),
+                JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
+            ));
 
-        JamJar::Standard::_2D::Box2DBodyProperties playerProps;
-        auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
-            JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
-            playerProps
-        );
-        playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
-        player->Add(playerBody);
+            JamJar::Standard::_2D::Box2DBodyProperties playerProps;
+            auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
+                JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
+                playerProps
+            );
+            playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
+            player->Add(playerBody);
 
-        SpawnEnemyFromDarkness(-13.0f, 1.5f);
-        SpawnEnemyFromDarkness(13.0f, -1.5f); 
+            SpawnEnemyFromDarkness(-13.0f, 1.5f);
+            SpawnEnemyFromDarkness(13.0f, -1.5f); 
+            
+        } catch (const std::exception& e) {
+            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА в OnStart(): " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ внутри OnStart()" << std::endl;
+        }
     }
 
 private:
@@ -293,7 +301,6 @@ int main(int argc, char *argv[]) {
     std::cout << "C++: Инициализация базовых подсистем JamJar..." << std::endl;
 
     auto* messageBus = new JamJar::MessageBus();
-
     new JamJar::EntityManager(messageBus);
 
     G_GameInstance = new MathDuelGame(messageBus);
@@ -301,6 +308,7 @@ int main(int argc, char *argv[]) {
     new JamJar::Standard::_2D::WebGL2System(messageBus, window, context);
     new JamJar::Standard::_2D::PrimitiveSystem(messageBus);
     new JamJar::Standard::_2D::Box2DPhysicsSystem(messageBus, JamJar::Vector2D(0.0f, 0.0f));
+    
     new JamJar::Standard::WindowSystem(messageBus, window, "canvas-wrapper");
     
     new EnemyAISystem(messageBus);
@@ -311,7 +319,13 @@ int main(int argc, char *argv[]) {
 void StartGameSession() {
     if (G_GameInstance != nullptr) {
         std::cout << "C++: Старт игрового сеанса через JS триггер." << std::endl;
-        G_GameInstance->Start();
+        try {
+            G_GameInstance->Start();
+        } catch (const std::exception& e) {
+            std::cerr << "КРИТИЧЕСКАЯ ОШИБКА при старте цикла: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "НЕИЗВЕСТНОЕ ИСКЛЮЧЕНИЕ при старте цикла" << std::endl;
+        }
     }
 }
 
