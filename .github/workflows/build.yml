@@ -52,7 +52,7 @@ jobs:
         make Duel
 
     - name: Upload Build Artifacts
-      uses: actions/artifacts/upload@v4
+      uses: actions/upload-artifact@v4
       with:
         name: math-duel-web-release
         path: |
