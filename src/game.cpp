@@ -201,9 +201,8 @@ public:
         auto player = new JamJar::Entity(this->messageBus);
         player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
         
-        JamJar::Standard::_2D::Box2DBodyProperties playerProps;
-        playerProps.type = b2_staticBody;
-
+        JamJar::Standard::_2D::Box2DBodyProperties playerProps; 
+        
         auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f}),
             playerProps
@@ -218,22 +217,18 @@ public:
 private:
     void SpawnEnemyFromDarkness(float x, float y) {
         auto enemyEntity = new JamJar::Entity(this->messageBus);
-        
         enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
         
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
-        enemyProps.type = b2_dynamicBody;
         enemyProps.density = 1.0f;
-
-        JamJar::Polygon enemyShape({0.0f, 0.75f,  0.75f, -0.75f,  -0.75f, -0.75f});
+        enemyProps.angularVelocity = 0.0f;
 
         auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-            enemyShape,
+            JamJar::Polygon({0.0f, 0.75f,  0.75f, -0.75f,  -0.75f, -0.75f}),
             enemyProps
         );
         
         enemyBody->SetPosition(JamJar::Vector2D(x, y));
-        
         enemyEntity->Add(enemyBody);
 
         auto challenge = GenerateMathChallenge();
