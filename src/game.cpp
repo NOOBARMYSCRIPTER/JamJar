@@ -30,10 +30,9 @@
 #include "standard/2d/transform/transform.hpp"
 #include "standard/window/window_system.hpp"
 
+#include "render/color.hpp"
 #include "standard/2d/primitive/primitive.hpp"
 #include "standard/2d/primitive/primitive_system.hpp"
-#include "standard/2d/primitive/material.hpp"
-
 #include "standard/2d/webgl2/webgl2_system.hpp"
 
 const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
@@ -200,7 +199,7 @@ public:
 
         new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
         new EnemyAISystem(this->messageBus);
-
+        
         new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
         new JamJar::Standard::_2D::WebGL2System(this->messageBus);
 
@@ -213,7 +212,7 @@ public:
         
         player->Add(new JamJar::Standard::_2D::Primitive(
             JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  -1.0f, 1.0f}),
-            JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
+            JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f)
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties playerProps;
@@ -235,7 +234,7 @@ private:
         
         enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
             JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  0.0f, 1.0f}),
-            JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
+            JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f)
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
