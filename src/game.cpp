@@ -30,6 +30,11 @@
 #include "standard/2d/transform/transform.hpp"
 #include "standard/window/window_system.hpp"
 
+#include "standard/2d/primitive/primitive.hpp"
+#include "standard/2d/primitive/primitive_system.hpp"
+#include "standard/2d/primitive/material.hpp"
+#include "standard/2d/primitive/color.hpp"
+
 const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
 constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
 
@@ -156,20 +161,21 @@ private:
             if (!enemy.body) continue;
 
             JamJar::Vector2D currentPos = enemy.body->GetPosition();
+            
             JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
             float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
             
-            if (length > 0.1f) {
+            if (length > 0.5f) {
                 direction.x /= length;
                 direction.y /= length;
-                float speed = 3.0f;
+                float speed = 2.0f;
                 enemy.body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
             } else {
                 enemy.body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
             }
 
             float pctX = (currentPos.x + 15.0f) / 30.0f;
-            float pctY = 1.0f - ((currentPos.y + 1.2f + 8.5f) / 17.0f);
+            float pctY = 1.0f - ((currentPos.y + 8.5f) / 17.0f);
 
             const char* text = enemy.challenge_text.c_str();
 
@@ -189,20 +195,26 @@ public:
     MathDuelGame(JamJar::MessageBus* messageBus) : JamJar::Game(messageBus) {}
 
     void OnStart() override {
-        std::cout << "C++: Запуск игровых систем и сцены!" << std::endl;
+        std::cout << "C++: Инициализация графики, физики и сцены..." << std::endl;
 
         new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
         new EnemyAISystem(this->messageBus);
+        
+        new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
 
         auto cameraEntity = new JamJar::Entity(this->messageBus);
         cameraEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
-        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.1f, 0.1f, 0.1f, 1.0f), JamJar::Vector2D(30, 17)));
+        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.07f, 0.07f, 0.09f, 1.0f), JamJar::Vector2D(30, 17)));
 
         auto player = new JamJar::Entity(this->messageBus);
-        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
+        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
         
-        JamJar::Standard::_2D::Box2DBodyProperties playerProps; 
-        
+        player->Add(new JamJar::Standard::_2D::Primitive(
+            JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f, 1.0f}),
+            JamJar::Material(JamJar::Color(0.2f, 0.4f, 1.0f, 1.0f))
+        ));
+
+        JamJar::Standard::_2D::Box2DBodyProperties playerProps;
         auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f}),
             playerProps
@@ -210,21 +222,27 @@ public:
         playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
         player->Add(playerBody);
 
-        SpawnEnemyFromDarkness(-20.0f, 0.0f);
-        SpawnEnemyFromDarkness(20.0f, 0.0f); 
+        SpawnEnemyFromDarkness(-12.0f, 2.0f);
+        SpawnEnemyFromDarkness(12.0f, -2.0f); 
     }
 
 private:
     void SpawnEnemyFromDarkness(float x, float y) {
         auto enemyEntity = new JamJar::Entity(this->messageBus);
-        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
         
+        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1, 1)));
+        
+        enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
+            JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  0.0f, 1.0f}),
+            JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
+        ));
+
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
         enemyProps.density = 1.0f;
         enemyProps.angularVelocity = 0.0f;
 
         auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-            JamJar::Polygon({0.0f, 0.75f,  0.75f, -0.75f,  -0.75f, -0.75f}),
+            JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f}),
             enemyProps
         );
         
@@ -241,8 +259,8 @@ private:
         
         G_ActiveEnemies.push_back(enemyData);
 
-        std::cout << "Монстр вышел из темноты (" << x << ", " << y << "). Пример: " 
-                  << challenge.challenge_text << " | Ответ: " << challenge.expected_answer << std::endl;
+        std::cout << "Монстр вышел из темноты ID: " << enemyEntity->id << " на позицию (" << x << ", " << y << "). Пример: " 
+                  << challenge.challenge_text << std::endl;
     }
 
     struct ChallengeData {
