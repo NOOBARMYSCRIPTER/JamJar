@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "component/component.hpp"
 #include "entity/entity.hpp"
 #include "game.hpp"
 #include "geometry/polygon.hpp"
@@ -20,13 +21,14 @@
 #include "standard/2d/box2d/box2d_body.hpp"
 #include "standard/2d/box2d/box2d_physics_system.hpp"
 #include "standard/2d/camera/camera.hpp"
-#include "standard/2d/primitive/primitive_system.hpp"
 #include "standard/2d/transform/transform.hpp"
 #include "standard/window/window_system.hpp"
 
 JamJar::Game* G_GameInstance = nullptr;
 
-struct MathChallengeComponent {
+std::vector<JamJar::Entity*> G_EnemyEntities;
+
+struct MathChallengeComponent : public JamJar::Component {
     int expected_answer;
     std::string challenge_text;
     
@@ -34,7 +36,7 @@ struct MathChallengeComponent {
         : expected_answer(answer), challenge_text(text) {}
 };
 
-struct EnemyTagComponent {};
+struct EnemyTagComponent : public JamJar::Component {};
 
 class EnemyAISystem : public JamJar::System {
 public:
@@ -55,10 +57,12 @@ public:
 
 private:
     void UpdateEnemyAndUI(float deltaTime) {
-        for (auto const& [id, entity] : this->entities) {
-            auto* body = entity.Get<JamJar::Standard::_2D::Box2DBody>();
-            auto* enemyTag = entity.Get<EnemyTagComponent>();
-            auto* challenge = entity.Get<MathChallengeComponent>();
+        for (auto* entity : G_EnemyEntities) {
+            if (!entity) continue;
+
+            auto* body = entity->Get<JamJar::Standard::_2D::Box2DBody>();
+            auto* enemyTag = entity->Get<EnemyTagComponent>();
+            auto* challenge = entity->Get<MathChallengeComponent>();
             
             if (body && enemyTag && challenge) {
                 JamJar::Vector2D currentPos = body->GetPosition();
@@ -75,10 +79,9 @@ private:
                 }
 
                 float pctX = (currentPos.x + 15.0f) / 30.0f;
-                
                 float pctY = 1.0f - ((currentPos.y + 1.2f + 8.5f) / 17.0f);
 
-                unsigned int entityId = id; 
+                unsigned int entityId = entity->id; 
                 const char* text = challenge->challenge_text.c_str();
 
                 MAIN_THREAD_EM_ASM({
@@ -91,7 +94,6 @@ private:
     }
 };
 
-
 class MathDuelGame : public JamJar::Game {
 public:
     MathDuelGame(JamJar::MessageBus* messageBus) : JamJar::Game(messageBus) {}
@@ -99,10 +101,7 @@ public:
     void OnStart() override {
         std::cout << "C++: Запуск игровых систем и сцены!" << std::endl;
 
-        new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
         new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
-        
-        // Регистрируем наш ИИ монстров
         new EnemyAISystem(this->messageBus);
 
         auto cameraEntity = new JamJar::Entity(this->messageBus);
@@ -111,13 +110,13 @@ public:
 
         auto player = new JamJar::Entity(this->messageBus);
         player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
-        player->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5}), 
-            JamJar::Material(JamJar::Color(0, 0, 1, 1))
-        ));
+        
+        JamJar::Standard::_2D::Box2DBodyProperties playerProps;
+        playerProps.type = b2_staticBody;
+
         player->Add(new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5}),
-            JamJar::Standard::_2D::Box2DBodyProperties({.type = b2_staticBody})
+            playerProps
         ));
 
         SpawnEnemyFromDarkness(-20.0f, 0.0f);
@@ -129,14 +128,13 @@ private:
         auto enemy = new JamJar::Entity(this->messageBus);
         enemy->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
         
-        enemy->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5}), 
-            JamJar::Material(JamJar::Color(1, 0, 0, 1))
-        ));
-        
+        JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
+        enemyProps.type = b2_dynamicBody;
+        enemyProps.density = 1.0f;
+
         enemy->Add(new JamJar::Standard::_2D::Box2DBody(
             JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5}),
-            JamJar::Standard::_2D::Box2DBodyProperties({.density = 1.0f, .type = b2_dynamicBody})
+            enemyProps
         ));
 
         enemy->Add(new EnemyTagComponent());
@@ -144,6 +142,8 @@ private:
         auto challenge = GenerateMathChallenge();
         enemy->Add(new MathChallengeComponent(challenge.expected_answer, challenge.challenge_text));
         
+        G_EnemyEntities.push_back(enemy);
+
         std::cout << "Монстр вышел из темноты (" << x << ", " << y << "). Пример: " 
                   << challenge.challenge_text << " | Ответ: " << challenge.expected_answer << std::endl;
     }
