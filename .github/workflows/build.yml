@@ -16,19 +16,26 @@ jobs:
 
     - name: Lint, beautify, and test
       env:
-        CC: gcc # Using gcc/g++ for now due to this issue: https://bugs.launchpad.net/ubuntu/+source/libsdl2-ttf/+bug/1872023
+        CC: gcc 
         CXX: g++
       run: |
-        # Set up build
-        cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
 
-        make lint || true
+        make lint
         make beautify
         git diff --exit-code
 
-        # Build unit tests
+        cd ..
+        rm -rf build/
+        cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
+        cd build
+
         make JamJarTests
+        ctest
+
+        cd ..
+        rm -rf build/
 
     - name: Build WebAssembly (Duel Game)
       env:
@@ -45,6 +52,6 @@ jobs:
       with:
         name: math-duel-web-release
         path: |
-          index.html
-          Duel.js
-          Duel.wasm
+          build/index.html
+          build/Duel.js
+          build/Duel.wasm
