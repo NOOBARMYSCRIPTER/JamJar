@@ -304,7 +304,6 @@ void StartGameSession() {
             playerProps.density = 1.0f;
             playerProps.friction = 0.3f;
             playerProps.restitution = 0.0f;
-            playerProps.type = JamJar::Standard::_2D::BodyType::DYNAMIC;
 
             auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
                 JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
@@ -312,7 +311,6 @@ void StartGameSession() {
             );
             
             playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
-            
             player->Add(playerBody);
 
             SpawnEnemyFromDarkness(G_MessageBus, -13.0f, 1.5f);
