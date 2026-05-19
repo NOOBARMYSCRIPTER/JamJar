@@ -226,7 +226,6 @@ private:
         auto enemyEntity = new JamJar::Entity(this->messageBus);
         enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
         
-        // Отрисовка монстра (Красный треугольник из примитивов)
         enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
             JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
             JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
