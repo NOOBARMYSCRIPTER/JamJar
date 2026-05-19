@@ -33,7 +33,8 @@
 #include "standard/2d/primitive/primitive.hpp"
 #include "standard/2d/primitive/primitive_system.hpp"
 #include "standard/2d/primitive/material.hpp"
-#include "standard/2d/primitive/color.hpp"
+
+#include "standard/2d/webgl2/webgl2_system.hpp"
 
 const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
 constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
@@ -168,7 +169,7 @@ private:
             if (length > 0.5f) {
                 direction.x /= length;
                 direction.y /= length;
-                float speed = 2.0f;
+                float speed = 1.8f; 
                 enemy.body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
             } else {
                 enemy.body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
@@ -199,19 +200,20 @@ public:
 
         new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
         new EnemyAISystem(this->messageBus);
-        
+
         new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
+        new JamJar::Standard::_2D::WebGL2System(this->messageBus);
 
         auto cameraEntity = new JamJar::Entity(this->messageBus);
         cameraEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
-        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.07f, 0.07f, 0.09f, 1.0f), JamJar::Vector2D(30, 17)));
+        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f), JamJar::Vector2D(30, 17)));
 
         auto player = new JamJar::Entity(this->messageBus);
         player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
         
         player->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f, 1.0f}),
-            JamJar::Material(JamJar::Color(0.2f, 0.4f, 1.0f, 1.0f))
+            JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  -1.0f, 1.0f}),
+            JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties playerProps;
@@ -222,14 +224,13 @@ public:
         playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
         player->Add(playerBody);
 
-        SpawnEnemyFromDarkness(-12.0f, 2.0f);
-        SpawnEnemyFromDarkness(12.0f, -2.0f); 
+        SpawnEnemyFromDarkness(-13.0f, 1.5f);
+        SpawnEnemyFromDarkness(13.0f, -1.5f); 
     }
 
 private:
     void SpawnEnemyFromDarkness(float x, float y) {
         auto enemyEntity = new JamJar::Entity(this->messageBus);
-        
         enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1, 1)));
         
         enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
