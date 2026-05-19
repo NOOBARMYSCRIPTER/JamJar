@@ -277,7 +277,7 @@ void SpawnEnemyFromDarkness(JamJar::MessageBus* mb, float x, float y) {
     enemyEntity->Add(enemyBody);
 
     enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
-        JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5,  0, 0.5}),
+        JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5,  -0.5, 0.5}),
         JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
     ));
 
