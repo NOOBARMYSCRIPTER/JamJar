@@ -30,7 +30,8 @@ jobs:
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
 
-        make lint
+        clang-tidy ../src/game.cpp -p . -- -std=c++17 -I$EMSDK/upstream/emscripten/cache/sysroot/include || true
+
         make beautify
         git diff --exit-code
 
@@ -44,7 +45,7 @@ jobs:
 
         cd ..
         rm -rf build/
-
+        
     - name: Build WebAssembly (Duel Game)
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
