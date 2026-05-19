@@ -15,6 +15,7 @@
 #endif
 
 #include "entity/entity.hpp"
+#include "entity/entity_manager.hpp"
 #include "geometry/polygon.hpp"
 #include "geometry/vector_2d.hpp"
 #include "hash.hpp"
@@ -34,9 +35,6 @@
 #include "standard/2d/primitive/primitive.hpp"
 #include "standard/2d/primitive/primitive_system.hpp"
 #include "standard/2d/webgl2/webgl2_system.hpp"
-
-SDL_Window* G_SDL_WindowInstance = nullptr;
-EMSCRIPTEN_WEBGL_CONTEXT_HANDLE G_WebGL_ContextInstance = 0;
 
 const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
 constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
@@ -198,30 +196,22 @@ public:
     MathDuelGame(JamJar::MessageBus* messageBus) : JamJar::Game(messageBus) {}
 
     void OnStart() override {
-        std::cout << "C++: Инициализация графики, физики и сцены..." << std::endl;
-
-        new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
-        new EnemyAISystem(this->messageBus);
-        
-        new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
-        
-        new JamJar::Standard::_2D::WebGL2System(this->messageBus, G_SDL_WindowInstance, G_WebGL_ContextInstance);
+        std::cout << "C++: Наполнение сцены объектами..." << std::endl;
 
         auto cameraEntity = new JamJar::Entity(this->messageBus);
-        cameraEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
-        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f), JamJar::Vector2D(30, 17)));
+        cameraEntity->Add(new JamJar::Standard::_2D::Transform());
+        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.08f, 0.08f, 0.1f, 1.0f)));
 
         auto player = new JamJar::Entity(this->messageBus);
-        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
-        
+        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
         player->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  -1.0f, 1.0f}),
+            JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  -0.5f, 0.5f}),
             JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties playerProps;
         auto* playerBody = new JamJar::Standard::_2D::Box2DBody(
-            JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f}),
+            JamJar::Polygon({-0.5f, 0.5f,  0.5f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
             playerProps
         );
         playerBody->SetPosition(JamJar::Vector2D(0.0f, 0.0f));
@@ -234,19 +224,19 @@ public:
 private:
     void SpawnEnemyFromDarkness(float x, float y) {
         auto enemyEntity = new JamJar::Entity(this->messageBus);
-        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1, 1)));
+        enemyEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(2, 2)));
         
+        // Отрисовка монстра (Красный треугольник из примитивов)
         enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
-            JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  0.0f, 1.0f}),
+            JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f,  0.0f, 0.5f}),
             JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
         enemyProps.density = 1.0f;
-        enemyProps.angularVelocity = 0.0f;
 
         auto* enemyBody = new JamJar::Standard::_2D::Box2DBody(
-            JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f}),
+            JamJar::Polygon({0.0f, 0.5f,  0.5f, -0.5f,  -0.5f, -0.5f}),
             enemyProps
         );
         
@@ -298,20 +288,30 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-    G_SDL_WindowInstance = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
-    G_WebGL_ContextInstance = JamJar::GetCanvasContext();
+    auto window = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
+    auto context = JamJar::GetCanvasContext();
+
+    std::cout << "C++: Инициализация базовых подсистем JamJar..." << std::endl;
 
     auto* messageBus = new JamJar::MessageBus();
 
-    new JamJar::Standard::WindowSystem(messageBus, G_SDL_WindowInstance, "canvas-wrapper");
+    new JamJar::EntityManager(messageBus);
 
     G_GameInstance = new MathDuelGame(messageBus);
+
+    new JamJar::Standard::_2D::WebGL2System(messageBus, window, context);
+    new JamJar::Standard::_2D::PrimitiveSystem(messageBus);
+    new JamJar::Standard::_2D::Box2DPhysicsSystem(messageBus, JamJar::Vector2D(0.0f, 0.0f));
+    new JamJar::Standard::WindowSystem(messageBus, window, "canvas-wrapper");
+    
+    new EnemyAISystem(messageBus);
 
     return 0;
 }
 
 void StartGameSession() {
     if (G_GameInstance != nullptr) {
+        std::cout << "C++: Старт игрового сеанса через JS триггер." << std::endl;
         G_GameInstance->Start();
     }
 }
