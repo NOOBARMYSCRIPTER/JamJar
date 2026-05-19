@@ -42,7 +42,7 @@ constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(25
 
 JamJar::Game::Game(JamJar::MessageBus *messageBus)
     : messageBus(messageBus), isRunning(false), m_accumulator(std::chrono::microseconds(0)),
-      m_currentTime = std::chrono::high_resolution_clock::now() {
+      m_currentTime(std::chrono::high_resolution_clock::now()) {
     messageBus->Subscribe(this, JamJar::Game::MESSAGE_STOP_GAME);
 }
 
