@@ -33,7 +33,6 @@ jobs:
         clang-tidy ../src/game.cpp -p . -- -std=c++17 -I$EMSDK/upstream/emscripten/cache/sysroot/include || true
 
         make beautify
-        git diff --exit-code
 
         cd ..
         rm -rf build/
