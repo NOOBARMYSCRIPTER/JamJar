@@ -149,17 +149,24 @@ public:
 
     void OnMessage(JamJar::Message* message) override {
         if (message != nullptr && message->type == JamJar::System::MESSAGE_UPDATE) {
-            UpdateEnemyAndUI(0.01666f);
+            try {
+                UpdateEnemyAndUI(0.01666f);
+            } catch (const std::exception& e) {
+
+            } catch (...) {
+
+            }
         }
     }
 
 private:
     void UpdateEnemyAndUI(float deltaTime) {
         for (auto& enemy : G_ActiveEnemies) {
-            if (!enemy.body) continue;
+            if (enemy.body == nullptr) continue;
 
             try {
                 JamJar::Vector2D currentPos = enemy.body->GetPosition();
+                
                 JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
                 float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
                 
@@ -183,6 +190,8 @@ private:
                     }
                 }, enemy.id, text, pctX, pctY);
 #endif
+            } catch (const std::exception& e) {
+                continue; 
             } catch (...) {
                 continue;
             }
