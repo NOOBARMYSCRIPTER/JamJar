@@ -23,7 +23,6 @@ jobs:
         cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
 
-        # Линтер проверит код, выведет отчет в лог, но не уронит сборку
         make lint || true
         make beautify
         git diff --exit-code
