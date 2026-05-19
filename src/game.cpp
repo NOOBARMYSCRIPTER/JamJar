@@ -82,22 +82,43 @@ bool JamJar::Game::Loop(std::chrono::high_resolution_clock::time_point timestamp
     this->m_accumulator += frameTime;
 
     while (this->m_accumulator >= timeStep) {
-        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
-            JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
-        this->messageBus->Dispatch();
+        try {
+            this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
+                JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
+            this->messageBus->Dispatch();
+        } catch (const std::exception& e) {
+            printf("ДИАГНОСТИКА: Упало на этапе MESSAGE_UPDATE! Ошибка: %s\n", e.what());
+            throw;
+        }
         this->m_accumulator -= timeStep;
     }
 
     auto alpha = float(this->m_accumulator.count()) / float(TIME_STEP);
 
-    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
-    this->messageBus->Dispatch();
+    try {
+        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
+        this->messageBus->Dispatch();
+    } catch (const std::exception& e) {
+        printf("ДИАГНОСТИКА: Упало на этапе PRE_RENDER! Ошибка: %s\n", e.what());
+        throw;
+    }
 
-    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
+    try {
+        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
+        this->messageBus->Dispatch(); 
+    } catch (const std::exception& e) {
+        printf("ДИАГНОСТИКА: Упало на этапе MESSAGE_RENDER! Ошибка: %s\n", e.what());
+        throw;
+    }
 
-    this->messageBus->Publish(
-        std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
-    this->messageBus->Dispatch();
+    try {
+        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
+        this->messageBus->Dispatch();
+    } catch (const std::exception& e) {
+        printf("ДИАГНОСТИКА: Упало на этапе POST_RENDER! Ошибка: %s\n", e.what());
+        throw;
+    }
+
     return true;
 }
 
