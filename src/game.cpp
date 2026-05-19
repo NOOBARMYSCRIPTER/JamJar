@@ -1,115 +1,189 @@
+#include <memory>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <random>
+#include <chrono>
+#include <emscripten/bind.h>
+
 #include "game.hpp"
-#include "hash.hpp"
+#include "window.hpp"
+#include "message/message_bus.hpp"
 #include "message/message.hpp"
 #include "message/message_payload.hpp"
+#include "entity/entity.hpp"
+#include "geometry/vector_2d.hpp"
+#include "geometry/polygon.hpp"
 #include "system/system.hpp"
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <emscripten/html5.h>
-#include <stdio.h>
-#endif
+#include "standard/window/window_system.hpp"
+#include "standard/2d/transform/transform.hpp"
+#include "standard/2d/camera/camera.hpp"
+#include "standard/2d/primitive/primitive_system.hpp"
+#include "standard/2d/box2d/box2d_physics_system.hpp"
+#include "standard/2d/box2d/box2d_body.hpp"
 
-const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
+JamJar::Game* G_GameInstance = nullptr;
 
-constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
+struct MathChallengeComponent {
+    int expected_answer;
+    std::string challenge_text;
+    
+    MathChallengeComponent(int answer, std::string text) 
+        : expected_answer(answer), challenge_text(text) {}
+};
 
-JamJar::Game::Game(JamJar::MessageBus *messageBus)
-    : messageBus(messageBus), isRunning(false), m_accumulator(std::chrono::microseconds(0)),
-      m_currentTime(std::chrono::high_resolution_clock::now()) {
-    messageBus->Subscribe(this, JamJar::Game::MESSAGE_STOP_GAME);
-}
+struct EnemyTagComponent {};
 
-void JamJar::Game::Start() {
-    this->OnStart();
-    this->isRunning = true;
-    this->startLoop();
-}
-
-void JamJar::Game::stop() {
-    this->OnStop();
-    this->isRunning = false;
-}
-
-void JamJar::Game::OnMessage(JamJar::Message *message) {
-    switch (message->type) {
-    case JamJar::Game::MESSAGE_STOP_GAME: {
-        this->stop();
-        return;
-    }
-    }
-}
-
-bool JamJar::Game::Loop(std::chrono::high_resolution_clock::time_point timestamp) {
-    if (!this->isRunning) {
-        return false;
+class EnemyAISystem : public JamJar::System {
+public:
+    EnemyAISystem(JamJar::MessageBus* messageBus) : JamJar::System(messageBus) {
+        this->messageBus->Subscribe(this, JamJar::System::MESSAGE_UPDATE);
     }
 
-    // Calculate time since last frame.
-    auto timeDifference = timestamp - this->m_currentTime;
-    auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(timeDifference);
-    if (frameTime > FRAMETIME_CAP) {
-        // If frametime gets execssive, cap it.
-        frameTime = FRAMETIME_CAP;
+    void OnMessage(JamJar::Message* message) override {
+        JamJar::System::OnMessage(message);
+        
+        if (message->type == JamJar::System::MESSAGE_UPDATE) {
+            auto* updateMsg = static_cast<JamJar::MessagePayload<float>*>(message);
+            float deltaTime = updateMsg->payload;
+            
+            UpdateEnemyMovement(deltaTime);
+        }
     }
 
-    auto timeStep = std::chrono::microseconds(TIME_STEP);
+private:
+    void UpdateEnemyMovement(float deltaTime) {
+        for (auto const& [id, entity] : this->entities) {
+            auto* body = entity.Get<JamJar::Standard::_2D::Box2DBody>();
+            auto* enemyTag = entity.Get<EnemyTagComponent>();
+            
+            if (body && enemyTag) {
+                JamJar::Vector2D currentPos = body->GetPosition();
+                
+                JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
+                
+                float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+                if (length > 0.1f) {
+                    direction.x /= length;
+                    direction.y /= length;
+                    
+                    float speed = 3.0f;
+                    body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
+                } else {
+                    body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
+                }
+            }
+        }
+    }
+};
 
-    this->m_currentTime = timestamp;
 
-    this->m_accumulator += frameTime;
+class MathDuelGame : public JamJar::Game {
+public:
+    MathDuelGame(JamJar::MessageBus* messageBus) : JamJar::Game(messageBus) {}
 
-    while (this->m_accumulator >= timeStep) {
-        this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(
-            JamJar::System::MESSAGE_UPDATE, float(TIME_STEP) / MICROSECOND_TO_SECOND_CONVERSION));
-        this->messageBus->Dispatch();
-        this->m_accumulator -= timeStep;
+    void OnStart() override {
+        std::cout << "C++: Запуск игровых систем и сцены!" << std::endl;
+
+        new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
+        new JamJar::Standard::_2D::Box2DPhysicsSystem(this->messageBus, JamJar::Vector2D(0.0f, 0.0f));
+        
+        // Регистрируем наш ИИ монстров
+        new EnemyAISystem(this->messageBus);
+
+        auto cameraEntity = new JamJar::Entity(this->messageBus);
+        cameraEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
+        cameraEntity->Add(new JamJar::Standard::_2D::Camera(JamJar::Color(0.1f, 0.1f, 0.1f, 1.0f), JamJar::Vector2D(30, 17)));
+
+        auto player = new JamJar::Entity(this->messageBus);
+        player->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(2, 2)));
+        player->Add(new JamJar::Standard::_2D::Primitive(
+            JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5}), 
+            JamJar::Material(JamJar::Color(0, 0, 1, 1))
+        ));
+        player->Add(new JamJar::Standard::_2D::Box2DBody(
+            JamJar::Polygon({-0.5, 0.5,  0.5, 0.5,  0.5, -0.5,  -0.5, -0.5}),
+            JamJar::Standard::_2D::Box2DBodyProperties({.type = b2_staticBody})
+        ));
+
+        SpawnEnemyFromDarkness(-20.0f, 0.0f);
+        SpawnEnemyFromDarkness(20.0f, 0.0f); 
     }
 
-    // Alpha constant for interpolation calculations
-    auto alpha = float(this->m_accumulator.count()) / float(TIME_STEP);
+private:
+    void SpawnEnemyFromDarkness(float x, float y) {
+        auto enemy = new JamJar::Entity(this->messageBus);
+        enemy->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(x, y), JamJar::Vector2D(1.5, 1.5)));
+        
+        enemy->Add(new JamJar::Standard::_2D::Primitive(
+            JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5}), 
+            JamJar::Material(JamJar::Color(1, 0, 0, 1))
+        ));
+        
+        enemy->Add(new JamJar::Standard::_2D::Box2DBody(
+            JamJar::Polygon({0, 0.5,  0.5, -0.5,  -0.5, -0.5}),
+            JamJar::Standard::_2D::Box2DBodyProperties({.density = 1.0f, .type = b2_dynamicBody})
+        ));
 
-    // Pre-render and dispatch, must be immediately dispatched to allow pre-render systems to
-    // send messages to the renderer before the actual render call.
-    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_PRE_RENDER, alpha));
-    this->messageBus->Dispatch();
+        enemy->Add(new EnemyTagComponent());
 
-    // Render
-    this->messageBus->Publish(std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_RENDER, alpha));
-
-    // Post render
-    this->messageBus->Publish(
-        std::make_unique<JamJar::MessagePayload<float>>(JamJar::Game::MESSAGE_POST_RENDER, alpha));
-    this->messageBus->Dispatch();
-    return true;
-}
-
-void JamJar::Game::OnStart() {}
-void JamJar::Game::OnStop() {}
-
-#ifdef __EMSCRIPTEN__
-
-EM_BOOL loopWrapper(double timestamp, void *userData) {
-    auto game = static_cast<JamJar::Game *>(userData);
-    auto now = std::chrono::high_resolution_clock::now();
-    if (game->Loop(now)) {
-        emscripten_request_animation_frame(loopWrapper, game);
+        auto challenge = GenerateMathChallenge();
+        enemy->Add(new MathChallengeComponent(challenge.expected_answer, challenge.challenge_text));
+        
+        std::cout << "Монстр вышел из темноты (" << x << ", " << y << "). Пример: " 
+                  << challenge.challenge_text << " | Ответ: " << challenge.expected_answer << std::endl;
     }
-    return EM_TRUE;
+
+    struct ChallengeData {
+        int expected_answer;
+        std::string challenge_text;
+    };
+
+    ChallengeData GenerateMathChallenge() {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> actionDist(0, 1);
+        std::uniform_int_distribution<> answerDist(1, 10);
+
+        int answer = answerDist(gen);
+        std::string text = "";
+
+        if (actionDist(gen) == 0) {
+            std::uniform_int_distribution<> aDist(0, answer);
+            int a = aDist(gen);
+            int b = answer - a;
+            text = std::to_string(a) + " + " + std::to_string(b);
+        } else {
+            std::uniform_int_distribution<> bDist(0, 10);
+            int b = bDist(gen);
+            int a = answer + b;
+            text = std::to_string(a) + " - " + std::to_string(b);
+        }
+
+        return ChallengeData{answer, text};
+    }
+};
+
+int main(int argc, char *argv[]) {
+    auto window = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
+    auto context = JamJar::GetCanvasContext();
+
+    auto* messageBus = new JamJar::MessageBus();
+
+    new JamJar::Standard::WindowSystem(messageBus, window, "canvas-wrapper");
+
+    G_GameInstance = new MathDuelGame(messageBus);
+
+    return 0;
 }
 
-void JamJar::Game::startLoop() {
-    this->m_currentTime = std::chrono::high_resolution_clock::now();
-    loopWrapper(0, this);
-}
-
-#else
-void JamJar::Game::startLoop() {
-    this->m_currentTime = std::chrono::high_resolution_clock::now();
-    bool running = true;
-    while (running) {
-        auto now = std::chrono::high_resolution_clock::now();
-        running = this->Loop(now);
+void StartGameSession() {
+    if (G_GameInstance != nullptr) {
+        G_GameInstance->Start();
     }
 }
-#endif
+
+EMSCRIPTEN_BINDINGS(game_core_module) {
+    emscripten::function("StartGameSession", &StartGameSession);
+}
