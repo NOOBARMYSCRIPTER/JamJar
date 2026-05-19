@@ -159,6 +159,8 @@ if (EMSCRIPTEN)
     )
 
     target_link_libraries(Duel PRIVATE JamJar)
+    
+    target_include_directories(Duel PRIVATE include)
 
     target_link_options(Duel PRIVATE
         "-s" "USE_SDL=2"
