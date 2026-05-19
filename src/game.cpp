@@ -1,28 +1,28 @@
-#include <memory>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <random>
 #include <chrono>
-#include <emscripten/bind.h>
 #include <emscripten.h>
+#include <emscripten/bind.h>
+#include <iostream>
+#include <memory>
+#include <random>
+#include <string>
+#include <vector>
 
-#include "game.hpp"
-#include "window.hpp"
-#include "message/message_bus.hpp"
-#include "message/message.hpp"
-#include "message/message_payload.hpp"
 #include "entity/entity.hpp"
-#include "geometry/vector_2d.hpp"
+#include "game.hpp"
 #include "geometry/polygon.hpp"
+#include "geometry/vector_2d.hpp"
+#include "message/message.hpp"
+#include "message/message_bus.hpp"
+#include "message/message_payload.hpp"
 #include "system/system.hpp"
+#include "window.hpp"
 
-#include "standard/window/window_system.hpp"
-#include "standard/2d/transform/transform.hpp"
+#include "standard/2d/box2d/box2d_body.hpp"
+#include "standard/2d/box2d/box2d_physics_system.hpp"
 #include "standard/2d/camera/camera.hpp"
 #include "standard/2d/primitive/primitive_system.hpp"
-#include "standard/2d/box2d/box2d_physics_system.hpp"
-#include "standard/2d/box2d/box2d_body.hpp"
+#include "standard/2d/transform/transform.hpp"
+#include "standard/window/window_system.hpp"
 
 JamJar::Game* G_GameInstance = nullptr;
 
@@ -30,8 +30,8 @@ struct MathChallengeComponent {
     int expected_answer;
     std::string challenge_text;
     
-    MathChallengeComponent(int answer, std::string text) 
-        : expected_answer(answer), challenge_text(std::move(text)) {}
+    MathChallengeComponent(int answer, const std::string& text) 
+        : expected_answer(answer), challenge_text(text) {}
 };
 
 struct EnemyTagComponent {};
