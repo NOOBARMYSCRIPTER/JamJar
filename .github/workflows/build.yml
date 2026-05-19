@@ -16,8 +16,8 @@ jobs:
 
     - name: Lint, beautify, and test
       env:
-        CC: gcc 
-        CXX: g++
+        CC: emcc
+        CXX: em++
       run: |
         emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
@@ -28,6 +28,9 @@ jobs:
 
         cd ..
         rm -rf build/
+
+        export CC=gcc
+        export CXX=g++
         cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON . -B build
         cd build
 
@@ -42,11 +45,10 @@ jobs:
         CC: emcc
         CXX: em++
       run: |
-        cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
-              -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="/emsdk/upstream/emscripten/cache/sysroot/include" \
-              . -B build
+        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
         cd build
-        make lint
+        
+        make Duel
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
