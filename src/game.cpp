@@ -5,6 +5,7 @@
 #include <random>
 #include <chrono>
 #include <emscripten/bind.h>
+#include <emscripten.h>
 
 #include "game.hpp"
 #include "window.hpp"
@@ -48,31 +49,43 @@ public:
             auto* updateMsg = static_cast<JamJar::MessagePayload<float>*>(message);
             float deltaTime = updateMsg->payload;
             
-            UpdateEnemyMovement(deltaTime);
+            UpdateEnemyAndUI(deltaTime);
         }
     }
 
 private:
-    void UpdateEnemyMovement(float deltaTime) {
+    void UpdateEnemyAndUI(float deltaTime) {
         for (auto const& [id, entity] : this->entities) {
             auto* body = entity.Get<JamJar::Standard::_2D::Box2DBody>();
             auto* enemyTag = entity.Get<EnemyTagComponent>();
+            auto* challenge = entity.Get<MathChallengeComponent>();
             
-            if (body && enemyTag) {
+            if (body && enemyTag && challenge) {
                 JamJar::Vector2D currentPos = body->GetPosition();
-                
                 JamJar::Vector2D direction(-currentPos.x, -currentPos.y);
-                
                 float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+                
                 if (length > 0.1f) {
                     direction.x /= length;
                     direction.y /= length;
-                    
                     float speed = 3.0f;
                     body->SetLinearVelocity(JamJar::Vector2D(direction.x * speed, direction.y * speed));
                 } else {
                     body->SetLinearVelocity(JamJar::Vector2D(0.0f, 0.0f));
                 }
+
+                float pctX = (currentPos.x + 15.0f) / 30.0f;
+                
+                float pctY = 1.0f - ((currentPos.y + 1.2f + 8.5f) / 17.0f);
+
+                unsigned int entityId = id; 
+                const char* text = challenge->challenge_text.c_str();
+
+                MAIN_THREAD_EM_ASM({
+                    if (Module.updateMonsterUI) {
+                        Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
+                    }
+                }, entityId, text, pctX, pctY);
             }
         }
     }
