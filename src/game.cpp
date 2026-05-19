@@ -35,6 +35,9 @@
 #include "standard/2d/primitive/primitive_system.hpp"
 #include "standard/2d/webgl2/webgl2_system.hpp"
 
+SDL_Window* G_SDL_WindowInstance = nullptr;
+EMSCRIPTEN_WEBGL_CONTEXT_HANDLE G_WebGL_ContextInstance = 0;
+
 const float MICROSECOND_TO_SECOND_CONVERSION = 1000000;
 constexpr std::chrono::microseconds FRAMETIME_CAP = std::chrono::microseconds(250000);
 
@@ -201,7 +204,8 @@ public:
         new EnemyAISystem(this->messageBus);
         
         new JamJar::Standard::_2D::PrimitiveSystem(this->messageBus);
-        new JamJar::Standard::_2D::WebGL2System(this->messageBus);
+        
+        new JamJar::Standard::_2D::WebGL2System(this->messageBus, G_SDL_WindowInstance, G_WebGL_ContextInstance);
 
         auto cameraEntity = new JamJar::Entity(this->messageBus);
         cameraEntity->Add(new JamJar::Standard::_2D::Transform(JamJar::Vector2D(0, 0), JamJar::Vector2D(1, 1)));
@@ -212,7 +216,7 @@ public:
         
         player->Add(new JamJar::Standard::_2D::Primitive(
             JamJar::Polygon({-1.0f, 1.0f,  1.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  -1.0f, 1.0f}),
-            JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f)
+            JamJar::Material(JamJar::Color(0.2f, 0.5f, 1.0f, 1.0f))
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties playerProps;
@@ -234,7 +238,7 @@ private:
         
         enemyEntity->Add(new JamJar::Standard::_2D::Primitive(
             JamJar::Polygon({0.0f, 1.0f,  1.0f, -1.0f,  -1.0f, -1.0f,  0.0f, 1.0f}),
-            JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f)
+            JamJar::Material(JamJar::Color(1.0f, 0.2f, 0.2f, 1.0f))
         ));
 
         JamJar::Standard::_2D::Box2DBodyProperties enemyProps;
@@ -294,12 +298,12 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-    auto window = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
-    auto context = JamJar::GetCanvasContext();
+    G_SDL_WindowInstance = JamJar::GetWindow("Math Duel: Magic Caster", 1280, 720);
+    G_WebGL_ContextInstance = JamJar::GetCanvasContext();
 
     auto* messageBus = new JamJar::MessageBus();
 
-    new JamJar::Standard::WindowSystem(messageBus, window, "canvas-wrapper");
+    new JamJar::Standard::WindowSystem(messageBus, G_SDL_WindowInstance, "canvas-wrapper");
 
     G_GameInstance = new MathDuelGame(messageBus);
 
