@@ -140,15 +140,37 @@ if(JAMJAR_NATIVE_COMPILE_UNIT_TESTS)
 
 endif()
 
-add_subdirectory (examples/Collision)
-add_subdirectory (examples/Fullscreen)
-add_subdirectory (examples/MouseInput)
-add_subdirectory (examples/Physics)
-add_subdirectory (examples/PhysicsResizing)
-add_subdirectory (examples/Primitives)
-add_subdirectory (examples/Rotator)
-add_subdirectory (examples/Sprites)
-add_subdirectory (examples/Cursor)
+if (NOT EMSCRIPTEN)
+    add_subdirectory (examples/Collision)
+    add_subdirectory (examples/Fullscreen)
+    add_subdirectory (examples/MouseInput)
+    add_subdirectory (examples/Physics)
+    add_subdirectory (examples/PhysicsResizing)
+    add_subdirectory (examples/Primitives)
+    add_subdirectory (examples/Rotator)
+    add_subdirectory (examples/Sprites)
+    add_subdirectory (examples/Cursor)
+endif()
+
+### ===== WEB BUILD (MATH DUEL) ===== ###
+if (EMSCRIPTEN)
+    add_executable(Duel 
+        src/game.cpp
+    )
+
+    target_link_libraries(Duel PRIVATE JamJar)
+
+    target_link_options(Duel PRIVATE
+        "-s" "USE_SDL=2"
+        "-s" "ALLOW_MEMORY_GROWTH=1"
+        "--bind"
+        "-O3"
+    )
+
+    set_target_properties(Duel PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+endif()
 
 ### ===== clang-format ===== ###
 
