@@ -38,7 +38,7 @@ jobs:
         rm -rf build/
 
         cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
-              -D CMAKE_CXX_FLAGS="-std=c++17 -DCATCH_CONFIG_NO_POSIX_SIGNALS" \
+              -D CMAKE_CXX_FLAGS_INIT="-DCATCH_CONFIG_NO_POSIX_SIGNALS" \
               . -B build
         cd build
         make JamJarTests
