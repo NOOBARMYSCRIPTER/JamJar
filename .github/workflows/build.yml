@@ -42,10 +42,11 @@ jobs:
         CC: emcc
         CXX: em++
       run: |
-        emcmake cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -DJAMJAR_NATIVE_COMPILE_UNIT_TESTS=OFF . -B build
+        cmake -D CMAKE_EXPORT_COMPILE_COMMANDS=ON \
+              -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="/emsdk/upstream/emscripten/cache/sysroot/include" \
+              . -B build
         cd build
-
-        make Duel
+        make lint
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
