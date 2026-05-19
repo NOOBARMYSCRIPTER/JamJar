@@ -165,8 +165,8 @@ if (EMSCRIPTEN)
     target_include_directories(Duel PRIVATE include)
 
     target_link_options(Duel PRIVATE
-        "-s" "USE_SDL=2"
-        "-s" "ALLOW_MEMORY_GROWTH=1"
+        "-s ALLOW_MEMORY_GROWTH=1"
+        "-s USE_SDL=2"
         "--bind"
         "-O3"
     )
