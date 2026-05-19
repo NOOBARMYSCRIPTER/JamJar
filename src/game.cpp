@@ -183,8 +183,10 @@ private:
 
 #ifdef __EMSCRIPTEN__
             MAIN_THREAD_EM_ASM({
-                if (window.Module && typeof window.Module.updateMonsterUI === 'function') {
-                    window.Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
+                if (window.Module) {
+                    if (window.Module.updateMonsterUI) {
+                        window.Module.updateMonsterUI($0, UTF8ToString($1), $2, $3);
+                    }
                 }
             }, enemy.id, text, pctX, pctY);
 #endif
